@@ -93,6 +93,57 @@
       // canvas.style.width = (max * scale) + 'px';
       // canvas.style.height = (max * scale) + 'px';
 
+      function strRepeat(str, qty) {  // From Lodash
+        if (qty < 1) return '';
+        var result = '';
+        while (qty > 0) {
+          if (qty & 1) result += str;
+          qty >>= 1, str += str;
+        }
+        return result;
+      };
+      
+      function hexToBin (hex) {
+        let pad = strRepeat(hex.length*4);
+        let b2 = parseInt(hex,16).toString(2);
+        let bin = (pad + b2).substr(-24);
+        return bin;
+      }
+
+      function binToHex (bin) {
+        let pad = strRepeat(hex.length/4);
+        let b16 = parseInt(bin,2).toString(16);
+        let hex = (pad + b16).substr(-6);
+        return hex;
+      }
+
+      function binToB64 (bin) {
+        let b64 = bin;
+        let arr8 = new Uint8Array(bin.length / 8);
+        for(i=0;i<bin.length/8;i++) {
+          arr8[i] = parseInt(bin.substr(i*8,8),2);
+        }
+        let str8 = String.fromCharCode.apply(null, arr8);
+        b64 = btoa(str8);
+        return b64.replace(/\+/g,'-').replace(/\//g,'_');
+      }
+
+      function b64ToBin (b64) {
+        let str8 = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+        let arr8 = new Uint8Array(str8.length)
+        for(i=0;i<str8.length;i++) {
+          arr8[i] = str8.charCodeAt(i);
+        }
+        let bin = ""
+        for(i=0;i<arr8.length;i++) {
+          let pad = strRepeat(b64.length*6);
+          let b2 = arr8[i].toString(2);
+          bin += (pad + b2).substr(-8);
+        }
+        return bin
+      }
+
+
       function draw () {
         var fg = document.getElementById('fg').value;
         var bg = document.getElementById('bg').value;
@@ -113,6 +164,12 @@
           }
         }
         // ctx.scale(10,10);
+
+        console.log(fg.replace(/^#?/,'') + bg.replace(/^#?/, ''));
+        let bs = hexToBin(fg.replace(/^#?/, '') + bg.replace(/^#?/, ''));
+        console.log(bs);
+        let us = binToB64(bs);
+        console.log(us);
 
         const uri = canvas.toDataURL('image/png');
         downloadButton.href = uri;
