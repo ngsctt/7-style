@@ -1,0 +1,15 @@
+@font-face {
+  font-family: 'Chicago';
+  src:  url('./fonts/sysfont.woff2') format('woff2'),
+        url('./fonts/sysfont.woff') format('woff');
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: 'Geneva';
+  /* src: url('./fonts/FindersKeepers.ttf'); */
+  src:  url('./fonts/Jeniva-Regular.woff2') format('woff2'),
+        url('./fonts/Jeniva-Regular.woff') format('woff');
+}
+
