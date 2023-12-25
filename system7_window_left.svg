@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100px" height="24px" viewBox="0 0 50 12" version="1.1"
+  xmlns="http://www.w3.org/2000/svg"
+  xmlns:xlink="http://www.w3.org/1999/xlink">
+  <g style="fill:none;stroke:black;stroke-width:1px;" stroke-linecap="butt">
+    <path d="M0,1  L4,1" />
+    <path d="M0,3  L4,3"/>
+    <path d="M0,5  L4,5"/>
+    <path d="M0,7  L4,7"/>
+    <path d="M0,9  L4,9"/>
+    <path d="M0,11 L4,11"/>
+    <rect x="5.5" y="1" width="10" height = "10" />
+    <path d="M17,1  L50,1" />
+    <path d="M17,3  L50,3"/>
+    <path d="M17,5  L50,5"/>
+    <path d="M17,7  L50,7"/>
+    <path d="M17,9  L50,9"/>
+    <path d="M17,11 L50,11"/>
+  </g>
+</svg>

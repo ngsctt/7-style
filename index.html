@@ -1,185 +1,233 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>System 7-style wallpapers</title>
-    <style>
-      :root{
-        font-family: system-ui, sans-serif;
-      }
-      html {
-        height: 100%;
-      }
-      body {
-        box-sizing: border-box;
-        margin: 0;
-        padding: .5rem;
-        height: 100%;
-        display: flex;
-        flex-direction: column;
-        image-rendering: -moz-crisp-edges;
-        image-rendering: -webkit-crisp-edges;
-        image-rendering: pixelated;
-        image-rendering: crisp-edges;
-      }
-      canvas {
-        display: block;
-        width: 10rem;
-        max-width: 100%;
-        margin: 1rem auto;
-        border: medium solid red;
-        image-rendering: -moz-crisp-edges;
-        image-rendering: -webkit-crisp-edges;
-        image-rendering: pixelated;
-        image-rendering: crisp-edges;
-      }
-      main {
-        max-width: 28rem;
-        margin: 0 auto;
-        background-color: white;
-        padding: 1rem;
-        border-radius: .5rem;
-      }
-      main :first-child {
-        margin-block-start: 0;
-      }
-      main :last-child {
-        margin-block-end: 0;
-      }
-      footer {
-        margin-top: auto;
-        text-align: right;
-      }
-      label {
-        display: block;
-      }
-      small {
-        background-color: white;
-        /* color: white; */
-        /* box-shadow: .1rem .1rem #777; */
-        padding: .25em .3em;
-        width: 100%;
-        filter: invert(100%);
-      }
-    </style>
-  </head>
-  <body>
-    <main>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>System 7-style wallpapers</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+  <main class="window">
+    <header class="title-bar">
       <h1>System 7-style wallpapers</h1>
+    </header>
+    <section id="controls">
       <label>Background:
-        <input type="color" id="bg", value="#ffffff">
+        <input type="color" id="bg" value="#ffffff" autocomplete="none">
       </label>
       <label>Foreground:
-        <input type="color" id="fg", value="#000000">
+        <input type="color" id="fg" value="#000000" autocomplete="none">
       </label>
-      <button id="btn-draw" onclick="draw()">Draw!</button>
+    </section>
+    <section class="canvas-and-preview">
       <canvas id="canvas"></canvas>
-      <div id="preview"></div>
-      <a id="btn-dl">Download</a>
-    </main>
-    <footer>
-      <small>Sourcecode available on <a href="https://github.com/ngsctt/7-style#readme">GitHub</a>.</small>
-    </footer>
-    <script>
-      var max = 8;
-      var scale = 10;
+      <div id="preview">
+        <header>
+          <div id="left" class="preview-button">
+            <svg viewBox="0 0 0.87 1" preserveAspectRatio="xMidYMid" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M0.87,0 L0,0.5 L0.87,1 Z" />
+            </svg>
+            <!-- <img src="./left.svg"> -->
+          </div>
+          <div id="right" class="preview-button">
+            <svg viewBox="0 0 0.87 1" xmlns="http://www.w3.org/2000/svg">
+              <path fill="currentColor" d="M0,0 L0.87,0.5 L0,1 Z" />
+            </svg>
+            <!-- <img src="./right.svg"> -->
+          </div>
+        </header>
+        <div id="preview-body"></div>
+      </div>
+    </section>
+    <section>
+      <button id="btn-invert">Invert colours</button>
+      <button id="btn-reset">Reset pattern</button>
+      <a id="btn-dl" class="button">Download</a>
+    </section>
+  </main>
+  <footer>
+    <small>Sourcecode available on <a href="https://github.com/ngsctt/7-style">GitHub</a>.</small>
+  </footer>
+  <script type="module">
+    import INBUILT from './inbuilt-patterns.js';
+    import { lock, release } from './locks.js';
+    const MAX = 8;
+    const SCALE = 10;
 
-      const canvas = document.getElementById('canvas');
-      const ctx = canvas.getContext('2d');
-      const downloadButton = document.getElementById('btn-dl');
-      canvas.width = max;
-      canvas.height = max;
-      // canvas.style.width = (max * scale) + 'px';
-      // canvas.style.height = (max * scale) + 'px';
+    let currentPattern = deepCloneArray(INBUILT[3]);
+    let pixelArray = deepCloneArray(currentPattern);
+    window.pixelArray = deepCloneArray(INBUILT[3]);
+    console.log(deepCloneArray(INBUILT[3]));
+    console.log(window.pixelArray);
 
-      function strRepeat(str, qty) {  // From Lodash
-        if (qty < 1) return '';
-        var result = '';
-        while (qty > 0) {
-          if (qty & 1) result += str;
-          qty >>= 1, str += str;
+    
+    let inbuiltCycle = -1;
+
+    const canvas = document.getElementById('canvas');
+    const display = canvas.getContext('2d');
+    const downloadButton = document.getElementById('btn-dl');
+    const fgInput = document.getElementById('fg');
+    const bgInput = document.getElementById('bg');
+    const preview = document.getElementById('preview-body');
+    const left = document.getElementById('left');
+    const right = document.getElementById('right');
+    const btnInvert = document.getElementById('btn-invert');
+    const btnReset = document.getElementById('btn-reset');
+
+    canvas.width = MAX;
+    canvas.height = MAX;
+    // canvas.style.width = (max * scale) + 'px';
+    // canvas.style.height = (max * scale) + 'px';
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width = canvas.width;
+    offscreen.height = canvas.height;
+    const ctx = offscreen.getContext('2d');
+
+    HTMLCanvasElement.prototype.toBlobPromise = function (type, quality) {
+      return new Promise((resolve, reject) => {
+        this.toBlob(blob => {
+          if (blob === null) reject();
+          else resolve(blob);
+        }, type, quality);
+      })
+    }
+
+    canvas.addEventListener('mousedown', event => beginDraw(event));
+    left.addEventListener('click', event => cycleLeft());
+    right.addEventListener('click', event => cycleRight());
+    preview.addEventListener('click', event => paint());
+    btnInvert.addEventListener('click', event => invert());
+    btnReset.addEventListener('click', event => reset());
+    fgInput.addEventListener('change', event => render());
+    bgInput.addEventListener('change', event => render());
+
+    function deepCloneArray (array) {
+      return array.map(i => Array.isArray(i) ? deepCloneArray(i) : i);
+    }
+
+    async function render () {
+      const fg = fgInput.value;
+      const bg = bgInput.value;
+
+      ctx.createImageData(MAX, MAX);
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, MAX, MAX);
+      ctx.fillStyle = fg;
+
+      for (let y = 0; y < MAX; y++) {
+        for (let x = 0; x < MAX; x++) {
+          // if (window.pixelArray[y][x]) ctx.fillRect(x, y, 1, 1);
+          if (pixelArray[y][x]) ctx.fillRect(x, y, 1, 1);
         }
-        return result;
-      };
-      
-      function hexToBin (hex) {
-        let pad = strRepeat(hex.length*4);
-        let b2 = parseInt(hex,16).toString(2);
-        let bin = (pad + b2).substr(-24);
-        return bin;
       }
 
-      function binToHex (bin) {
-        let pad = strRepeat(hex.length/4);
-        let b16 = parseInt(bin,2).toString(16);
-        let hex = (pad + b16).substr(-6);
-        return hex;
+      display.drawImage(offscreen, 0, 0);
+
+      const blob = await canvas.toBlobPromise('image/png')
+      if (window.renderedWallpaper) release(window.renderedWallpaper, 'preview');
+      const url = URL.createObjectURL(blob);
+      window.renderedWallpaper = lock(url, 'preview');
+      window.renderedName = `System7Wall-${fg.replace(/#?/, '')}-${bg.replace(/#?/, '')}`;
+      preview.style.backgroundImage = `url(${window.renderedWallpaper})`;
+    }
+    
+    function paint () {
+      if (window.paintedWallpaper) release(window.paintedWallpaper, 'wallpaper');
+      window.paintedWallpaper = lock(window.renderedWallpaper, 'wallpaper');
+      downloadButton.href = window.paintedWallpaper;
+      downloadButton.download = window.renderedName;
+  
+      // const img = new Image();
+      // img.onload = () => {
+      //   document.documentElement.style.backgroundImage = `url(${window.paintedWallpaper})`;
+      // };
+      // img.src = window.paintedWallpaper;
+      document.documentElement.style.backgroundImage = `url(${window.paintedWallpaper})`;
+  
+      // document.documentElement.style.backgroundImage += `url(${window.renderedWallpaper})`;
+      // setTimeout(() => {
+      //   document.body.style.backgroundImage = `url(${window.renderedWallpaper})`;
+      // }, 1000);
+    }
+
+    async function beginDraw (event) {
+      const previous = { x: undefined, y: undefined };
+      let mode = undefined;
+
+      async function draw (event) {
+        const bdy = canvas.getBoundingClientRect();
+        if (
+          event.clientX < bdy.left ||
+          event.clientX > bdy.right ||
+          event.clientY < bdy.top ||
+          event.clientY > bdy.bottom
+        ) return;
+        const x = Math.floor((event.clientX - bdy.left) / bdy.width * canvas.width);
+        const y = Math.floor((event.clientY - bdy.top) / bdy.height * canvas.height);
+        // if (mode == null) mode = !window.pixelArray[y][x];;
+        if (mode == null) mode = !pixelArray[y][x];;
+        if (previous.x == x && previous.y == y) return;
+        previous.x = x;
+        previous.y = y;
+
+        // window.pixelArray[y][x] = mode;
+        pixelArray[y][x] = mode;
+        await render();
       }
 
-      function binToB64 (bin) {
-        let b64 = bin;
-        let arr8 = new Uint8Array(bin.length / 8);
-        for(i=0;i<bin.length/8;i++) {
-          arr8[i] = parseInt(bin.substr(i*8,8),2);
-        }
-        let str8 = String.fromCharCode.apply(null, arr8);
-        b64 = btoa(str8);
-        return b64.replace(/\+/g,'-').replace(/\//g,'_');
-      }
+      await draw(event);
+      window.addEventListener('mousemove', draw);
+      window.addEventListener('mouseup', event => {
+        window.removeEventListener('mousemove', draw);
+      });
+    }
 
-      function b64ToBin (b64) {
-        let str8 = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
-        let arr8 = new Uint8Array(str8.length)
-        for(i=0;i<str8.length;i++) {
-          arr8[i] = str8.charCodeAt(i);
-        }
-        let bin = ""
-        for(i=0;i<arr8.length;i++) {
-          let pad = strRepeat(b64.length*6);
-          let b2 = arr8[i].toString(2);
-          bin += (pad + b2).substr(-8);
-        }
-        return bin
-      }
+    function invert () {
+      const fg = fgInput.value;
+      const bg = bgInput.value;
+      fgInput.value = bg;
+      bgInput.value = fg;
+      render();
+    }
 
+    function reset () {
+      // window.pixelArray = DEFAULT();
+      pixelArray = deepCloneArray(currentPattern);
+      render();
+    }
 
-      function draw () {
-        var fg = document.getElementById('fg').value;
-        var bg = document.getElementById('bg').value;
+    const modInt = (n, m) => Math.round(((n % m) + m) % m);
 
-        ctx.createImageData(max,max)
-        ctx.fillStyle = bg;
-        ctx.fillRect(0,0,max,max);
-        ctx.fillStyle = fg;
+    function cycleRight () {
+      // inbuiltCycle = modInt(++inbuiltCycle, INBUILT.length);
+      if (++inbuiltCycle >= INBUILT.length) inbuiltCycle = 0;
+      console.log({ inbuiltCycle, l: INBUILT.length });
+      //window.pixelArray = (() => INBUILT[inbuiltCycle])();
+      //window.pixelArray = deepCloneArray(INBUILT[inbuiltCycle]);
+      pixelArray = deepCloneArray(INBUILT[inbuiltCycle]);
+      currentPattern = deepCloneArray(INBUILT[inbuiltCycle]);
+      pixelArray = deepCloneArray(currentPattern);
+      render();
+    }
 
-        for (x=0;x<max;x+=2) {
-          for (y=0;y<max;y+=2) {
-            ctx.fillRect(x,y,1,1);
-          }
-        }
-        for (x=1;x<max;x+=2) {
-          for (y=1;y<max;y+=2) {
-            ctx.fillRect(x,y,1,1);
-          }
-        }
-        // ctx.scale(10,10);
+    function cycleLeft () {
+      // inbuiltCycle = modInt(--inbuiltCycle, INBUILT.length);
+      if (--inbuiltCycle < 0) inbuiltCycle = INBUILT.length - 1;
+      console.log({ inbuiltCycle, l: INBUILT.length });
+      // window.pixelArray = (() => INBUILT[inbuiltCycle])();
+      window.pixelArray = deepCloneArray(INBUILT[inbuiltCycle]);
+      currentPattern = deepCloneArray(INBUILT[inbuiltCycle]);
+      pixelArray = deepCloneArray(currentPattern);
+      render();
+    }
 
-        console.log(fg.replace(/^#?/,'') + bg.replace(/^#?/, ''));
-        let bs = hexToBin(fg.replace(/^#?/, '') + bg.replace(/^#?/, ''));
-        console.log(bs);
-        let us = binToB64(bs);
-        console.log(us);
+    await render();
+    paint();
 
-        const uri = canvas.toDataURL('image/png');
-        downloadButton.href = uri;
-        downloadButton.download = `System7Wall-${fg.replace(/#?/,'')}-${bg.replace(/#?/, '')}`
+  </script>
+</body>
 
-        document.body.style.backgroundImage = `url(${uri})`;
-      }
-
-      draw();
-
-    </script>
-  </body>
 </html>
